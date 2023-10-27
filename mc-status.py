@@ -12,21 +12,41 @@ GLOBAL_PREFIX = ''
 GLOBAL_SERVER = ''
 GLOBAL_STATUS = {}
 
-def get_status(server, port):
-    server = JavaServer.lookup(server + ':' + str(port))
-    status = server.status()
-    
-    status_info = {}
-    status_info['server_latency'] = status.latency
-    status_info['players_online'] = status.players.online
-    status_info['players_max'] = status.players.max
-    status_info['players'] = {}
-    try:
-        for player in status.players.sample:
-            status_info['players'][player.id] = player.name
-    except:
-        pass
-    return status_info
+def get_status(server, port, max_retries=3):
+    attempts = 0
+    while attempts < max_retries:
+        try:
+            # Ensure the server address is in the correct format
+            if not server or not port:
+                raise ValueError("Invalid server address or port")
+
+            server = JavaServer.lookup(f"{server}:{port}")
+
+            if server is None:
+                raise ValueError("Minecraft server not found")
+
+            status = server.status()
+
+            status_info = {}
+            status_info['server_latency'] = status.latency
+            status_info['players_online'] = status.players.online
+            status_info['players_max'] = status.players.max
+            status_info['players'] = {}
+
+            for player in status.players.sample:
+                status_info['players'][player.id] = player.name
+
+            return status_info
+        except Exception as e:
+            print(f"Error querying server status: {str(e)}")
+            attempts += 1
+            time.sleep(5)  # Wait for a moment before the next retry
+
+    # If max_retries is reached, you can return a default or special value or raise an exception
+    print("Max retries reached. Unable to query server status.")
+    return None
+
+
 
 class CustomCollector:
     """
@@ -61,24 +81,37 @@ class CustomCollector:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Get information about a Minecraft server')
-    parser.add_argument('-s', '--server', help='Minecraft-Server Hostname', required=True)
-    parser.add_argument('-p', '--port', help='Minecraft-Server Port number', type=int, default=25565)
-    parser.add_argument('-x', '--prefix', help='Metrics-Prefix', type=str, default='')
-    parser.add_argument('-l', '--listen', help='Portnumber Listening', type=int, default=8008)
-    args = parser.parse_args()
+    try:
+        parser = argparse.ArgumentParser(description='Get information about a Minecraft server')
+        parser.add_argument('-s', '--server', help='Minecraft-Server Hostname', required=True)
+        parser.add_argument('-p', '--port', help='Minecraft-Server Port number', type=int, default=25565)
+        parser.add_argument('-x', '--prefix', help='Metrics-Prefix', type=str, default='')
+        parser.add_argument('-l', '--listen', help='Portnumber Listening', type=int, default=8008)
+        args = parser.parse_args()
 
-    GLOBAL_LISTEN = args.listen
-    GLOBAL_PORT = args.port
-    GLOBAL_PREFIX = args.prefix
-    GLOBAL_SERVER = args.server
-    GLOBAL_STATUS = get_status(GLOBAL_SERVER, GLOBAL_PORT)
-
-    REGISTRY.register(CustomCollector())
-
-    # Start up the server to expose the metrics.
-    start_http_server(GLOBAL_LISTEN)
-    # Generate some requests.
-    while True:
-        time.sleep(900)
+        GLOBAL_LISTEN = args.listen
+        GLOBAL_PORT = args.port
+        GLOBAL_PREFIX = args.prefix
+        GLOBAL_SERVER = args.server
         GLOBAL_STATUS = get_status(GLOBAL_SERVER, GLOBAL_PORT)
+
+        REGISTRY.register(CustomCollector())
+
+        # Start up the server to expose the metrics.
+        start_http_server(GLOBAL_LISTEN)
+        # Generate some requests.
+        while True:
+            try:
+                GLOBAL_STATUS = get_status(GLOBAL_SERVER, GLOBAL_PORT)
+                if GLOBAL_STATUS is not None:
+                    # Update metrics with the new status
+                    REGISTRY.collect()
+                else:
+                    # Handle the case when the server is unreachable
+                    # You can choose to log or send an alert here
+                    pass
+            except Exception as e:
+                print(f"Error in the main loop: {str(e)}")
+            time.sleep(900)
+    except Exception as e:
+        print(f"Error in main: {str(e)}")
