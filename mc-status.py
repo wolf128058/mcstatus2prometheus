@@ -12,7 +12,7 @@ GLOBAL_PREFIX = ''
 GLOBAL_SERVER = ''
 GLOBAL_STATUS = {}
 
-def get_status(server, port, max_retries=3):
+def get_status(server, port, max_retries=90):
     attempts = 0
     while attempts < max_retries:
         try:
@@ -40,7 +40,7 @@ def get_status(server, port, max_retries=3):
         except Exception as e:
             print(f"Error querying server status: {str(e)}")
             attempts += 1
-            time.sleep(5)  # Wait for a moment before the next retry
+            time.sleep(15)  # Wait for a moment before the next retry
 
     # If max_retries is reached, you can return a default or special value or raise an exception
     print("Max retries reached. Unable to query server status.")
