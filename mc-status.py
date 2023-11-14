@@ -28,13 +28,24 @@ def get_status(server, port, max_retries=90):
             status = server.status()
 
             status_info = {}
-            status_info['server_latency'] = status.latency
-            status_info['players_online'] = status.players.online
-            status_info['players_max'] = status.players.max
+            status_info['server_latency'] = None
+            status_info['players_online'] = 0
+            status_info['players_max'] = None
             status_info['players'] = {}
 
-            for player in status.players.sample:
-                status_info['players'][player.id] = player.name
+            if status.latency:
+                status_info['server_latency'] = status.latency
+
+            if status.players.online:
+                status_info['players_online'] = status.players.online
+
+            if status.players.max:
+                status_info['players_max'] = status.players.max
+
+
+            if  status.players.sample:
+                for player in status.players.sample:
+                    status_info['players'][player.id] = player.name
 
             return status_info
         except Exception as e:
