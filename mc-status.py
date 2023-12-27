@@ -51,7 +51,24 @@ def get_status(server, port, max_retries=90):
         except Exception as e:
             print(f"Error querying server status: {str(e)}")
             attempts += 1
-            time.sleep(15)  # Wait for a moment before the next retry
+            try:
+                # Use mcsrvstat-API as fallback
+                api_url = f"https://api.mcsrvstat.us/3/{server.address.host}:{server.address.port}"
+                response = requests.get(api_url)
+                if response.status_code == 200:
+                    data = response.json()
+                    status_info = {
+                        'server_latency': None,
+                        'players_online': data.get('players', {}).get('online', 0),
+                        'players_max': data.get('players', {}).get('max', None),
+                        'players': {player.get('uuid', ''): player.get('name', '') for player in data.get('players', {}).get('list', [])}
+                    }
+                    return status_info
+                else:
+                    print("Failed to fetch data from API")
+            except Exception as api_error:
+                print(f"Error querying API: {str(api_error)}")
+            time.sleep(15)
 
     # If max_retries is reached, you can return a default or special value or raise an exception
     print("Max retries reached. Unable to query server status.")
