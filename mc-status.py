@@ -2,6 +2,7 @@
 
 import argparse
 import time
+import requests
 from mcstatus import JavaServer
 from prometheus_client import start_http_server
 from prometheus_client.core import GaugeMetricFamily, REGISTRY
@@ -103,9 +104,10 @@ class CustomCollector:
         players_online.add_metric(['max'], int(str(GLOBAL_STATUS['players_max'])))
         yield players_online
 
-        server_latency = GaugeMetricFamily(my_prefix + 'server_latency', 'current value of server-latency', labels=['latency'])
-        server_latency.add_metric(['latency'], float(GLOBAL_STATUS['server_latency']))
-        yield server_latency
+        if GLOBAL_STATUS['server_latency']:
+            server_latency = GaugeMetricFamily(my_prefix + 'server_latency', 'current value of server-latency', labels=['latency'])
+            server_latency.add_metric(['latency'], float(GLOBAL_STATUS['server_latency']))
+            yield server_latency
 
 
 if __name__ == '__main__':
