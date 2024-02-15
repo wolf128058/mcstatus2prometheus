@@ -44,7 +44,7 @@ def get_status(server, port, max_retries=90):
                 status_info['players_max'] = status.players.max
 
 
-            if  status.players.sample:
+            if status.players.sample:
                 for player in status.players.sample:
                     status_info['players'][player.id] = player.name
 
